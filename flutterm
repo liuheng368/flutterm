@@ -1,0 +1,111 @@
+#!/usr/bin/env sh
+
+#chmod 755 flutterm
+#./flutterm init
+
+#./flutterm version
+#./flutterm download_sdk
+WRAPPER_PROPERTIES_FILE="flutter_wrapper.properties"
+WRAPPER_SDK_DIRECTORY="${HOME}/FlutterSDK"
+
+CURRENT_VERSION=""
+CURRENT_CHANNEL=""
+CURRENT_URL=""
+
+
+collection_sdk_info(){
+    version="$(cut -d'•' -f1 <<< $1)"
+    CURRENT_VERSION="$(cut -d' ' -f2 <<< ${version})"
+    channel="$(cut -d'•' -f2 <<< $1)"
+    CURRENT_CHANNEL="$(cut -d' ' -f2 <<< ${channel})"
+    git_url="$(cut -d'•' -f3 <<< $1)"
+    CURRENT_URL="$(cut -d' ' -f1 <<< ${git_url})"
+}
+
+
+init(){
+    echo "确定flutter版本"
+    system_sdk_info="$(flutter --version)"
+    if [ ! $? -eq 0 ]; then
+        echo "Error: flutter is not installed."
+        exit 1
+    fi
+
+    collection_sdk_info "${system_sdk_info}"
+
+    # remove old flutter_wrapper.property file 
+    rm -rf ${WRAPPER_PROPERTIES_FILE}
+
+    # add to file
+    echo "VERSION=${CURRENT_VERSION}" >> ${WRAPPER_PROPERTIES_FILE}
+    echo "CHANNEL=${CURRENT_CHANNEL}" >> ${WRAPPER_PROPERTIES_FILE}
+    echo "REPO_URL=${CURRENT_URL}" >> ${WRAPPER_PROPERTIES_FILE}
+}
+
+download_sdk(){
+    git init
+    git config http.postBuffer 524288000
+    required_flutter="${WRAPPER_SDK_DIRECTORY}/${VERSION}/"
+    if [ ! -e ${required_flutter} ]
+    then
+        if [[ ${VERSION} =~ ^[0-9|\.]+$ ]]
+        then
+            echo "v:${VERSION}"
+            git clone -b "v${VERSION}" https://github.com/flutter/flutter.git "${WRAPPER_SDK_DIRECTORY}/${VERSION}/" 
+        else
+            git clone -b master https://github.com/flutter/flutter.git "${WRAPPER_SDK_DIRECTORY}/${VERSION}/" 
+        fi
+    fi
+    echo "${WRAPPER_SDK_DIRECTORY}/${VERSION}/bin/flutter" "$@"
+    echo "FlutterSDk下载完成，版本:${VERSION}"
+}
+
+location_config() {
+    echo "---< 配置本地环完成 >---"
+    echo "">~/.bash_rc
+    touch ~/.bash_rc
+    echo 'export PUB_HOSTED_URL=https://pub.flutter-io.cn'>>~/.bash_rc
+    echo 'export FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn'>>~/.bash_rc
+    echo "export PATH=$PATH:${WRAPPER_SDK_DIRECTORY}/${VERSION}/bin">>~/.bash_rc
+    echo "export ANDROID_HOME=$HOME/Library/Android/sdk">>~/.bash_rc
+	echo "export PATH=${PATH}:${ANDROID_HOME}/tools">>~/.bash_rc
+	echo "export PATH=${PATH}:${ANDROID_HOME}/platform-tools">>~/.bash_rc
+    source ~/.bash_rc
+    echo "---< 检查 flutter 环境 >---"
+    flutter doctor
+}
+
+
+# read flutter_wrapper.properties file
+check_file_config(){
+    if [ -f "./$WRAPPER_PROPERTIES_FILE" ]
+    then
+        while IFS='=' read -r key value
+        do
+            key=$(echo $key | tr '.' '_')
+            eval ${key}=\${value}
+            echo "${key}=${value}"
+        done < "$WRAPPER_PROPERTIES_FILE"
+        if [[ -z $VERSION || -z $CHANNEL || -z $REPO_URL ]]; then
+            echo "./$WRAPPER_PROPERTIES_FILE is incorrect,please check it or run 'flutterm init'."
+            exit 1
+        fi
+    else
+        echo "$WRAPPER_PROPERTIES_FILE not found. please run 'flutterm init' to init project"
+    fi
+}
+
+if [ "$1" == "init" ]; then
+    init
+    printf "Init successful"
+elif [ "$1" == "version" ]; then
+    check_file_config
+elif [ "$1" == "config" ]; then
+    check_file_config
+    location_config
+else
+    check_file_config
+    download_sdk
+    location_config
+fi
+
