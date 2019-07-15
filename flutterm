@@ -1,10 +1,7 @@
 #!/usr/bin/env sh
 
 #chmod 755 flutterm
-#./flutterm init
 
-#./flutterm version
-#./flutterm download_sdk
 WRAPPER_PROPERTIES_FILE="flutter_wrapper.properties"
 WRAPPER_SDK_DIRECTORY="${HOME}/FlutterSDK"
 
@@ -64,15 +61,12 @@ location_config() {
     echo "---< 配置本地环完成 >---"
     echo "">~/.bash_rc
     touch ~/.bash_rc
+    echo "export ANDROID_HOME=$HOME/Library/Android/sdk">>~/.bash_rc
+    source ~/.bash_rc
     echo 'export PUB_HOSTED_URL=https://pub.flutter-io.cn'>>~/.bash_rc
     echo 'export FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn'>>~/.bash_rc
-    echo "export PATH=$PATH:${WRAPPER_SDK_DIRECTORY}/${VERSION}/bin">>~/.bash_rc
-    echo "export ANDROID_HOME=$HOME/Library/Android/sdk">>~/.bash_rc
-	echo "export PATH=${PATH}:${ANDROID_HOME}/tools">>~/.bash_rc
-	echo "export PATH=${PATH}:${ANDROID_HOME}/platform-tools">>~/.bash_rc
+    echo "export PATH=$ANDROID_HOME/tools:$ANDROID_HOME/platform-tools:$WRAPPER_SDK_DIRECTORY/$VERSION/bin:$PATH">>~/.bash_rc
     source ~/.bash_rc
-    echo "---< 检查 flutter 环境 >---"
-    flutter doctor
 }
 
 
@@ -100,12 +94,21 @@ if [ "$1" == "init" ]; then
     printf "Init successful"
 elif [ "$1" == "version" ]; then
     check_file_config
-elif [ "$1" == "config" ]; then
+elif [ "$1" == "doctor" ]; then
     check_file_config
     location_config
+    echo "---< 检查 flutter 环境 >---"
+    flutter doctor
+elif [ "$1" == "package_get" ]; then
+    check_file_config
+    location_config
+    echo "---< 下载 flutter 依赖包 >---"
+    flutter packages get
 else
     check_file_config
     download_sdk
     location_config
+    echo "---< 检查 flutter 环境 >---"
+    flutter doctor
 fi
 
